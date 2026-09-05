@@ -34,6 +34,17 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     @Query("select a from Application a where a.id = :id")
     Optional<Application> findByIdWithEvents(@Param("id") Long id);
 
+    /**
+     * One application with its company loaded.
+     *
+     * <p>{@code open-in-view} is off, so a lazy company proxy would fail the moment a controller
+     * serialises the response. Anything that returns an application to the API layer reads through
+     * here.
+     */
+    @EntityGraph(attributePaths = "company")
+    @Query("select a from Application a where a.id = :id")
+    Optional<Application> findByIdWithCompany(@Param("id") Long id);
+
     @EntityGraph(attributePaths = "company")
     List<Application> findByCompanyId(Long companyId);
 

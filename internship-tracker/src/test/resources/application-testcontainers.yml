@@ -1,0 +1,13 @@
+# Real PostgreSQL via Testcontainers. Connection details come from the container through
+# @ServiceConnection, so nothing is hardcoded here.
+#
+# The point of this profile is fidelity the H2 profile cannot offer: Flyway runs the production
+# migration and Hibernate validates the entities against the schema it produced, so a mismatch
+# between V1__initial_schema.sql and the mappings fails startup here.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration

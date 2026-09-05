@@ -46,7 +46,9 @@ public class ApplicationService {
 
     @Transactional(readOnly = true)
     public Application findById(Long id) {
-        return applications.findById(id).orElseThrow(() -> new ApplicationNotFoundException(id));
+        return applications
+                .findByIdWithCompany(id)
+                .orElseThrow(() -> new ApplicationNotFoundException(id));
     }
 
     /**

@@ -1,4 +1,4 @@
-package com.ahmedb.internship.service;
+package com.ahmedb.internship.api;
 
 import com.ahmedb.internship.TestClockConfiguration;
 import com.ahmedb.internship.repository.ApplicationRepository;
@@ -7,25 +7,25 @@ import com.ahmedb.internship.repository.ListingRepository;
 import com.ahmedb.internship.repository.ProcessedMessageRepository;
 import com.ahmedb.internship.repository.StatusEventRepository;
 import com.ahmedb.internship.repository.UnmatchedEmailRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import com.ahmedb.internship.TestProfilesResolver;
 import com.ahmedb.internship.TestcontainersConfiguration;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * Full-context service tests.
- *
- * <p>Deliberately not {@code @Transactional}: the ingestion pipeline commits each message in its own
- * transaction, and wrapping the test in one would hide exactly the behaviour worth checking. Tables
- * are truncated between tests instead.
- */
 @SpringBootTest
+@AutoConfigureMockMvc
 @ActiveProfiles(resolver = TestProfilesResolver.class)
 @Import({TestClockConfiguration.class, TestcontainersConfiguration.class})
-abstract class ServiceTestBase {
+abstract class ApiTestBase {
+
+    @Autowired protected MockMvc mockMvc;
+    @Autowired protected ObjectMapper objectMapper;
 
     @Autowired protected ApplicationRepository applications;
     @Autowired protected CompanyRepository companies;
@@ -36,12 +36,15 @@ abstract class ServiceTestBase {
 
     @BeforeEach
     void resetDatabase() {
-        // Child rows first: listings and queued emails both point at applications.
         listings.deleteAll();
         unmatchedEmails.deleteAll();
         statusEvents.deleteAll();
         applications.deleteAll();
         companies.deleteAll();
         processedMessages.deleteAll();
+    }
+
+    protected String json(Object value) throws Exception {
+        return objectMapper.writeValueAsString(value);
     }
 }
