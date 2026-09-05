@@ -1,0 +1,31 @@
+# Default test profile: H2 in PostgreSQL compatibility mode, no Docker required.
+#
+# Schema here comes from Hibernate, not Flyway, because H2 cannot run every construct in the
+# production migration. Real-Postgres fidelity -- Flyway plus ddl-auto=validate, which is what
+# catches drift between V1__initial_schema.sql and the entities -- is the `testcontainers`
+# profile: ./gradlew test -Ptestcontainers
+spring:
+  datasource:
+    url: jdbc:h2:mem:tracker;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: false
+
+tracker:
+  ghost:
+    threshold-days: 30
+  digest:
+    horizon-days: 7
+  gmail:
+    enabled: false
+    poll:
+      enabled: false

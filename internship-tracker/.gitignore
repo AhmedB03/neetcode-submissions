@@ -1,0 +1,26 @@
+# Build output
+build/
+bin/
+out/
+.gradle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Secrets -- NEVER commit. All runtime secrets come from environment variables.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+client_secret*.json
+credentials.json
+
+# Gmail OAuth token cache (contains a live refresh token)
+tokens/
+.gmail-tokens/
