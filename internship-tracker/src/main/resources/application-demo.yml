@@ -1,0 +1,28 @@
+# Demo mode: the real pipeline, a scripted mailbox, and an in-memory database.
+#
+#   ./gradlew bootRun --args='--spring.profiles.active=demo'
+#
+# No Gmail credentials and no PostgreSQL required. H2 is a developmentOnly dependency, so this
+# profile works under bootRun but is deliberately absent from the packaged jar.
+spring:
+  datasource:
+    url: jdbc:h2:mem:demo;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+
+tracker:
+  gmail:
+    # No Gmail bean is created; the demo fixture mailbox is the MailSource instead.
+    enabled: false
+    poll:
+      enabled: false
+
+logging:
+  level:
+    com.ahmedb.internship.demo: INFO

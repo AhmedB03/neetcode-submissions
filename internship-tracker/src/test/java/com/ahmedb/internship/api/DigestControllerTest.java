@@ -49,12 +49,28 @@ class DigestControllerTest extends ApiTestBase {
                 .andExpect(jsonPath("$.ghostThresholdDays").value(30))
                 .andExpect(jsonPath("$.counts.closingSoon").value(2))
                 .andExpect(jsonPath("$.counts.ghosted").value(1))
+                .andExpect(jsonPath("$.counts.overdue").value(0))
                 .andExpect(jsonPath("$.closingSoon[0].roleTitle").value("Due in 2 days"))
                 .andExpect(jsonPath("$.closingSoon[1].roleTitle").value("Due in 6 days"))
                 .andExpect(jsonPath("$.ghosted[0].roleTitle").value("Silent since June"))
                 .andExpect(jsonPath("$.ghosted[0].status").value("GHOSTED"))
                 .andExpect(jsonPath("$.ghosted[0].storedStatus").value("INTERVIEW"))
                 .andExpect(jsonPath("$.ghosted[0].daysSinceLastActivity").value(70));
+    }
+
+    @Test
+    @DisplayName("an already-missed deadline is reported separately, not silently dropped")
+    void reportsOverdue() throws Exception {
+        save("Missed the OA", ApplicationStatus.OA_PENDING, daysAgo(2), daysAgo(4));
+        save("Still upcoming", ApplicationStatus.OA_PENDING, daysFromNow(3), daysAgo(1));
+
+        mockMvc
+                .perform(get("/digest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.counts.overdue").value(1))
+                .andExpect(jsonPath("$.counts.closingSoon").value(1))
+                .andExpect(jsonPath("$.overdue[0].roleTitle").value("Missed the OA"))
+                .andExpect(jsonPath("$.closingSoon[0].roleTitle").value("Still upcoming"));
     }
 
     @Test
@@ -77,7 +93,8 @@ class DigestControllerTest extends ApiTestBase {
         mockMvc
                 .perform(get("/digest"))
                 .andExpect(jsonPath("$.counts.closingSoon").value(0))
-                .andExpect(jsonPath("$.counts.ghosted").value(0));
+                .andExpect(jsonPath("$.counts.ghosted").value(0))
+                .andExpect(jsonPath("$.counts.overdue").value(0));
     }
 
     @Test
@@ -88,6 +105,7 @@ class DigestControllerTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.counts.closingSoon").value(0))
                 .andExpect(jsonPath("$.counts.ghosted").value(0))
+                .andExpect(jsonPath("$.overdue").isArray())
                 .andExpect(jsonPath("$.closingSoon").isArray())
                 .andExpect(jsonPath("$.ghosted").isArray());
     }

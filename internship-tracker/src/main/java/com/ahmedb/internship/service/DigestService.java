@@ -46,6 +46,9 @@ public class DigestService {
 
         List<Application> closingSoon = applications.findWithDeadlineBetween(now, until, TERMINAL);
 
+        // Most overdue last: the list reads forward in time, so the newest miss is at the top.
+        List<Application> overdue = applications.findOverdue(now, TERMINAL);
+
         // Narrowed in SQL to applications that are quiet and in a ghostable status, then confirmed
         // by the same policy the rest of the API reads through, so one definition governs both.
         List<Application> ghosted =
@@ -54,18 +57,22 @@ public class DigestService {
                         .filter(ghostPolicy::isGhosted)
                         .toList();
 
-        return new Digest(now, until, ghostPolicy.thresholdDays(), closingSoon, ghosted);
+        return new Digest(now, until, ghostPolicy.thresholdDays(), overdue, closingSoon, ghosted);
     }
 
     /**
      * @param generatedAt when this digest was computed
      * @param horizon the end of the deadline window, exclusive
      * @param ghostThresholdDays the silence threshold that produced the ghosted list
+     * @param overdue live applications whose deadline has already passed
+     * @param closingSoon live applications with a deadline inside the horizon
+     * @param ghosted live applications that have gone quiet
      */
     public record Digest(
             Instant generatedAt,
             Instant horizon,
             int ghostThresholdDays,
+            List<Application> overdue,
             List<Application> closingSoon,
             List<Application> ghosted) {}
 }

@@ -19,12 +19,39 @@ entities, so a React client can be added without touching the backend.
 | Rule-based classifier behind a swappable interface | Done |
 | StatusEvents persisted, parent application updated | Done |
 | Applications by deadline, detail with timeline, manual override | Done |
-| `/digest` — closing in 7 days, plus anything ghosted | Done |
+| `/digest` — overdue, closing in 7 days, anything ghosted | Done |
 | Review queue for mail that matches no application | Done |
 | Listing entity | Schema only; nothing collects postings yet |
 | LLM classifier | Interface and composite ready; no implementation |
 
-## Quick start
+## See it work in one command
+
+No credentials, no database setup:
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=demo'
+curl localhost:8080/digest
+```
+
+Demo mode seeds four companies and replays a scripted mailbox through the **real** pipeline -- the
+same classifier, matcher and persistence the Gmail path uses. Only the mailbox is substituted. It
+shows, in one run:
+
+| What you see | Why it is there |
+|---|---|
+| Stripe at `FINAL_ROUND` | Five emails replayed in order through the whole progression |
+| A sixth Stripe event with `advancedStatus: false` | A duplicate acknowledgement arriving late, logged without dragging the application backwards |
+| Datadog at `REJECTED` | A rejection that opens by thanking you for applying |
+| Jane Street at `FINAL_ROUND` | A superday invitation, read as a final round rather than a generic interview |
+| Ramp reported as `GHOSTED`, stored as `APPLIED` | 71 days of silence, derived at read time |
+| Ramp in both `overdue` and `ghosted` | Quiet *and* past its deadline -- worth surfacing twice |
+| One entry in `/unmatched` | A Figma interview email, with no Figma application to attach it to. No company was invented |
+| A LinkedIn job alert with no trace | Ignored before any transition rule saw it |
+
+`DemoModeTest` asserts that story, so a change that breaks the demo fails the build rather than the
+demonstration.
+
+## Quick start against PostgreSQL
 
 ```bash
 createdb internship_tracker
@@ -79,7 +106,7 @@ turns on the schedule in `GMAIL_POLL_CRON`.
 | `POST` | `/applications` | Record an application |
 | `PATCH` | `/applications/{id}` | Update next action, deadline, applied date, source URL |
 | `POST` | `/applications/{id}/status` | Override the status by hand |
-| `GET` | `/digest` | Closing within 7 days, plus anything now ghosted |
+| `GET` | `/digest` | Overdue, closing within 7 days, and anything now ghosted |
 | `GET` | `/companies`, `POST` `/companies` | Companies and their sender domains |
 | `GET` | `/unmatched` | Review queue |
 | `POST` | `/unmatched/{id}/link` | Attach a queued email to an application |
@@ -186,17 +213,21 @@ resume from a watermark with a day of overlap, since mail does not arrive in tim
 ## Tests
 
 ```bash
-./gradlew test                    # 213 tests, H2 in PostgreSQL mode, no Docker needed
+./gradlew test                    # 225 tests, H2 in PostgreSQL mode, no Docker needed
 ./gradlew test -Ptestcontainers   # the same suite against real PostgreSQL
 ```
+
+`-Ptestcontainers` checks for a running Docker daemon before it starts and fails with that reason if
+there is none, rather than surfacing a context-load error in every Spring test.
 
 The default suite lets Hibernate build the schema, so `SchemaMigrationCoverageTest` compares the
 migration against the entity mappings and fails if a mapped table or column is missing from
 `V1__initial_schema.sql`. The Testcontainers profile is the stronger check: it applies the migration
 to real PostgreSQL and starts with `ddl-auto=validate`, so types and constraints are verified too.
 
-> The Testcontainers profile was wired up but has not been executed — the environment this was built
-> in has no Docker. Expect to run it once locally before trusting it.
+> The Testcontainers profile has not been executed — the environment this was built in has no
+> Docker. CI runs it on every push (`.github/workflows/internship-tracker.yml`), so the first green
+> run there is the confirmation.
 
 ## Configuration
 
@@ -217,8 +248,7 @@ archived mail).
 
 ## Known gaps
 
-- The digest window is forward-looking, so an already-overdue deadline is not in it.
-- Nothing populates `Listing` yet.
+- Nothing populates `Listing` yet; demo mode seeds one by hand so the shape is visible.
 - No authentication. Bind to localhost; this is a single-user tool.
 - `application.status` and `last_event_at` are denormalised from the event log, maintained in the
   same transaction that writes an event.

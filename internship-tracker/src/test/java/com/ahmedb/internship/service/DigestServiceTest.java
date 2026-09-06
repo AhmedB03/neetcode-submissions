@@ -52,14 +52,47 @@ class DigestServiceTest extends ServiceTestBase {
     }
 
     @Test
-    @DisplayName("the window is forward-looking, so an overdue deadline is not in it")
-    void pastDeadlinesAreExcludedFromTheForwardWindow() {
+    @DisplayName("the forward window and the overdue list are separate")
+    void overdueIsItsOwnBucket() {
         save("Overdue", ApplicationStatus.OA_PENDING, daysAgo(2), daysAgo(1));
         save("Upcoming", ApplicationStatus.OA_PENDING, daysFromNow(3), daysAgo(1));
 
         DigestService.Digest digest = digestService.build();
 
         assertThat(digest.closingSoon()).extracting(Application::getRoleTitle).containsExactly("Upcoming");
+        assertThat(digest.overdue()).extracting(Application::getRoleTitle).containsExactly("Overdue");
+    }
+
+    @Test
+    @DisplayName("overdue reads newest miss first, however far back it goes")
+    void overdueIsOrderedByRecency() {
+        save("Missed yesterday", ApplicationStatus.OA_PENDING, daysAgo(1), daysAgo(1));
+        save("Missed last month", ApplicationStatus.APPLIED, daysAgo(30), daysAgo(1));
+        save("Missed last week", ApplicationStatus.INTERVIEW, daysAgo(7), daysAgo(1));
+
+        assertThat(digestService.build().overdue())
+                .extracting(Application::getRoleTitle)
+                .containsExactly("Missed yesterday", "Missed last week", "Missed last month");
+    }
+
+    @Test
+    @DisplayName("a settled application cannot be overdue")
+    void terminalApplicationsAreNotOverdue() {
+        save("Rejected", ApplicationStatus.REJECTED, daysAgo(5), daysAgo(5));
+        save("Offered", ApplicationStatus.OFFER, daysAgo(5), daysAgo(5));
+        save("Live", ApplicationStatus.OA_PENDING, daysAgo(5), daysAgo(5));
+
+        assertThat(digestService.build().overdue())
+                .extracting(Application::getRoleTitle)
+                .containsExactly("Live");
+    }
+
+    @Test
+    @DisplayName("an application with no deadline is never overdue")
+    void undatedApplicationsAreNotOverdue() {
+        save("No deadline", ApplicationStatus.APPLIED, null, daysAgo(1));
+
+        assertThat(digestService.build().overdue()).isEmpty();
     }
 
     @Test
@@ -115,6 +148,7 @@ class DigestServiceTest extends ServiceTestBase {
     void emptyPipeline() {
         DigestService.Digest digest = digestService.build();
 
+        assertThat(digest.overdue()).isEmpty();
         assertThat(digest.closingSoon()).isEmpty();
         assertThat(digest.ghosted()).isEmpty();
     }

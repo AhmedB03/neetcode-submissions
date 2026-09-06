@@ -84,6 +84,24 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
             @Param("terminalStatuses") List<ApplicationStatus> terminalStatuses);
 
     /**
+     * Applications whose deadline has already passed and that are still live.
+     *
+     * <p>Separate from the forward window because the two mean different things: one is what to plan
+     * for, this is what may already have been missed.
+     */
+    @EntityGraph(attributePaths = "company")
+    @Query(
+            """
+            select a from Application a
+            where a.nextDeadline is not null
+              and a.nextDeadline < :now
+              and a.status not in :terminalStatuses
+            order by a.nextDeadline desc, a.id asc
+            """)
+    List<Application> findOverdue(
+            @Param("now") Instant now, @Param("terminalStatuses") List<ApplicationStatus> terminalStatuses);
+
+    /**
      * Candidates for ghosting: no activity since {@code cutoff} and in a status that can go stale.
      *
      * <p>Ghosting is decided in {@code GhostPolicy}; this only narrows the rows it has to consider.
